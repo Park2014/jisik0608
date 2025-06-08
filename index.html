@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>할일 관리</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css" rel="stylesheet">
+    <style>
+        .custom-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .quote-section {
+            background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .todo-item {
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateX(5px);
+        }
+
+        .completed span {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .delete-btn {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .todo-item:hover .delete-btn {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container py-8">
+        <div class="max-w-2xl mx-auto">
+            <!-- 격언 섹션 -->
+            <div class="quote-section rounded-lg p-6 mb-8 custom-shadow">
+                <p id="daily-quote" class="text-xl text-gray-700 italic mb-2"></p>
+                <p id="quote-author" class="text-sm text-gray-500"></p>
+            </div>
+
+            <!-- 메인 컨테이너 -->
+            <div class="bg-white rounded-xl p-6 custom-shadow">
+                <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">할일 관리</h1>
+                
+                <!-- 입력 섹션 -->
+                <div class="flex gap-3 mb-6">
+                    <input type="text" id="todo-input" 
+                           class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                           placeholder="할일을 입력하세요">
+                    <button onclick="addTodo()" 
+                            class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                        추가
+                    </button>
+                </div>
+
+                <!-- 할일 목록 -->
+                <ul id="todo-list" class="space-y-3"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+    <script>
+        // 격언 목록
+        const quotes = [
+            {
+                text: "시간은 가장 귀중한 자산입니다. 그것을 어떻게 사용하느냐가 당신의 미래를 결정합니다.",
+                author: "짐 론"
+            },
+            {
+                text: "오늘 할 수 있는 일을 내일로 미루지 마세요.",
+                author: "벤자민 프랭클린"
+            },
+            {
+                text: "시간 관리는 자기 관리입니다.",
+                author: "하이럼 스미스"
+            },
+            {
+                text: "성공의 비결은 시간을 지배하는 것입니다.",
+                author: "데니스 웨이트리"
+            },
+            {
+                text: "시간은 당신이 만든 것이 아니라, 당신이 가진 것입니다.",
+                author: "마야 안젤루"
+            },
+            {
+                text: "시간을 아끼는 것은 돈을 버는 것보다 중요합니다.",
+                author: "벤자민 프랭클린"
+            },
+            {
+                text: "시간은 당신이 원하는 것을 얻기 위해 투자해야 하는 유일한 자본입니다.",
+                author: "나폴레온 힐"
+            }
+        ];
+
+        // 오늘의 격언 표시
+        function showDailyQuote() {
+            const today = new Date();
+            const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+            const quoteIndex = dayOfYear % quotes.length;
+            
+            document.getElementById('daily-quote').textContent = quotes[quoteIndex].text;
+            document.getElementById('quote-author').textContent = `- ${quotes[quoteIndex].author}`;
+        }
+
+        // 로컬 스토리지에서 할일 목록 불러오기
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+        // 할일 목록 렌더링
+        function renderTodos() {
+            const todoList = document.getElementById('todo-list');
+            todoList.innerHTML = '';
+            
+            todos.forEach((todo, index) => {
+                const li = document.createElement('li');
+                li.className = `todo-item flex items-center gap-3 p-3 bg-gray-50 rounded-lg ${todo.completed ? 'completed' : ''}`;
+                
+                li.innerHTML = `
+                    <input type="checkbox" class="w-5 h-5 rounded border-gray-300 text-green-500 focus:ring-green-500"
+                           ${todo.completed ? 'checked' : ''} onchange="toggleTodo(${index})">
+                    <span class="flex-1 text-gray-700">${todo.text}</span>
+                    <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                            onclick="confirmDelete(${index})">삭제</button>
+                `;
+                
+                todoList.appendChild(li);
+            });
+        }
+
+        // 할일 추가
+        function addTodo() {
+            const input = document.getElementById('todo-input');
+            const text = input.value.trim();
+            
+            if (text) {
+                todos.push({
+                    text: text,
+                    completed: false
+                });
+                
+                input.value = '';
+                saveTodos();
+                renderTodos();
+                
+                // 성공 알림
+                Swal.fire({
+                    icon: 'success',
+                    title: '할일이 추가되었습니다!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            } else {
+                // 경고 알림
+                Swal.fire({
+                    icon: 'warning',
+                    title: '할일을 입력해주세요!',
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
+        }
+
+        // 할일 완료 토글
+        function toggleTodo(index) {
+            todos[index].completed = !todos[index].completed;
+            saveTodos();
+            renderTodos();
+            
+            // 상태 변경 알림
+            const status = todos[index].completed ? '완료' : '미완료';
+            Swal.fire({
+                icon: 'info',
+                title: `할일이 ${status} 상태로 변경되었습니다!`,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
+        // 삭제 확인
+        function confirmDelete(index) {
+            Swal.fire({
+                title: '정말 삭제하시겠습니까?',
+                text: "삭제된 할일은 복구할 수 없습니다.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: '삭제',
+                cancelButtonText: '취소'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteTodo(index);
+                }
+            });
+        }
+
+        // 할일 삭제
+        function deleteTodo(index) {
+            todos.splice(index, 1);
+            saveTodos();
+            renderTodos();
+            
+            // 삭제 완료 알림
+            Swal.fire({
+                icon: 'success',
+                title: '할일이 삭제되었습니다!',
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 2000
+            });
+        }
+
+        // 로컬 스토리지에 저장
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        // Enter 키로 할일 추가
+        document.getElementById('todo-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTodo();
+            }
+        });
+
+        // 초기화
+        showDailyQuote();
+        renderTodos();
+    </script>
+</body>
+</html>
